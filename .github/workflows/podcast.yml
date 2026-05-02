@@ -2,12 +2,11 @@ name: Daily Podcast Generation
 
 on:
   schedule:
-    # 毎日 JST 10:00 (UTC 01:00) に実行
     - cron: "0 1 * * *"
   workflow_dispatch:
     inputs:
       date_override:
-        description: "対象日付 (YYYY-MM-DD, 省略時は前日)"
+        description: "Target date (YYYY-MM-DD, leave empty for yesterday)"
         required: false
         default: ""
 
@@ -17,22 +16,22 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: リポジトリをチェックアウト
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Python 3.12 をセットアップ
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: "pip"
 
-      - name: 依存ライブラリをインストール
+      - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: ffmpeg の確認
+      - name: Check ffmpeg
         run: ffmpeg -version | head -1
 
-      - name: Podcast パイプラインを実行
+      - name: Run podcast pipeline
         working-directory: src
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -42,14 +41,12 @@ jobs:
         run: |
           DATE_ARG="${{ github.event.inputs.date_override }}"
           if [ -n "$DATE_ARG" ]; then
-            echo "指定日付: $DATE_ARG"
             python pipeline.py "$DATE_ARG"
           else
-            echo "自動実行 (前日)"
             python pipeline.py
           fi
 
-      - name: 成果物をアーティファクトとして保存
+      - name: Save artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
