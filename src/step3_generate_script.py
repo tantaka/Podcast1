@@ -79,8 +79,14 @@ def _call_with_retry(client: genai.Client, prompt: str) -> str:
                     contents=prompt,
                     config=types.GenerateContentConfig(temperature=0.9),
                 )
+                text = response.text
+                if not text and response.candidates:
+                    parts = response.candidates[0].content.parts
+                    text = "".join(p.text for p in parts if hasattr(p, "text") and p.text)
+                if not text:
+                    raise ValueError("Gemini API からテキストレスポンスが得られませんでした")
                 logger.info(f"台本生成完了 (モデル: {model})")
-                return response.text
+                return text
             except Exception as e:
                 err_msg = str(e).lower()
                 is_transient = any(k in err_msg for k in ["quota", "rate", "429", "500", "503", "unavailable"])

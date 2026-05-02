@@ -56,6 +56,23 @@ def _build_research_prompt(topic: dict) -> str:
 """.strip()
 
 
+def _extract_text(response) -> str:
+    """response からテキストを抽出する（grounding 使用時は response.text が None になる場合がある）。"""
+    text = response.text
+    if text:
+        return text
+    # candidates から直接取得
+    if response.candidates:
+        parts = response.candidates[0].content.parts
+        text = "".join(p.text for p in parts if hasattr(p, "text") and p.text)
+        if text:
+            return text
+    raise ValueError(
+        f"Gemini API からテキストレスポンスが得られませんでした。"
+        f"finish_reason={response.candidates[0].finish_reason if response.candidates else 'N/A'}"
+    )
+
+
 def _call_gemini_with_grounding(client: genai.Client, model: str, prompt: str) -> str:
     """Google Search grounding を使ってGeminiにリクエストする。"""
     response = client.models.generate_content(
@@ -66,7 +83,7 @@ def _call_gemini_with_grounding(client: genai.Client, model: str, prompt: str) -
             temperature=0.7,
         ),
     )
-    return response.text
+    return _extract_text(response)
 
 
 def _call_with_retry(client: genai.Client, prompt: str) -> str:
